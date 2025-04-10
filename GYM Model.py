@@ -42,10 +42,13 @@ def generate_html_body(file_path):
         </style>
     """
 
+    accounts_without_details = []
+    
     with open(file_path, 'r') as file:
         lines = file.readlines()
-        current_section = None
+        current_account = None
         in_table = False
+        has_data = False
 
         for line in lines:
             line = line.strip()
@@ -53,12 +56,23 @@ def generate_html_body(file_path):
             # Check for account name
             match = re.search(r'SNOWFLAKE ACOUNT NAME\s*:\s*(.*)', line)
             if match:
-                if in_table:
-                    html_body += "</table>"
-                    in_table = False
+                # If we were processing a previous account
+                if current_account:
+                    # Close table if needed
+                    if in_table:
+                        html_body += "</table>"
+                        in_table = False
+                    
+                    # If no data was found for previous account, add to our list
+                    if not has_data:
+                        accounts_without_details.append(current_account)
                 
-                account_name = match.group(1).strip()
-                html_body += f'<div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {account_name}</h3></div>'
+                # Start processing new account
+                current_account = match.group(1).strip()
+                has_data = False  # Reset data flag for new account
+                
+                # Add account header
+                html_body += f'<div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {current_account}</h3></div>'
                 html_body += "<table>"
                 in_table = True
                 continue
@@ -70,10 +84,10 @@ def generate_html_body(file_path):
                 
             # Check for table data
             if '<tr><td>' in line:
-                # Preserving original functionality while adding styling
-                # Check if this row contains information about expiring passwords
+                has_data = True  # We found data for this account
+                
+                # Style rows based on expiry days
                 if 'expir' in line.lower() and 'days' in line.lower():
-                    # Try to extract days until expiry
                     days_match = re.search(r'(\d+)\s*days', line.lower())
                     if days_match:
                         days = int(days_match.group(1))
@@ -85,9 +99,26 @@ def generate_html_body(file_path):
                 html_body += line
                 continue
     
+        # Process the last account
+        if current_account and not has_data:
+            accounts_without_details.append(current_account)
+            
         # Close the last table if needed
         if in_table:
             html_body += "</table>"
+    
+    # Add section for accounts without expiry details
+    if accounts_without_details:
+        html_body += """
+        <div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin: 30px 0 20px; border-radius: 0 5px 5px 0;">
+            <h3 style="color: #333333; margin: 0;">Accounts with No Expiry Details</h3>
+        </div>
+        """
+        html_body += "<ul style='padding-left: 20px; color: #555;'>"
+        for account in accounts_without_details:
+            html_body += f"<li style='margin-bottom: 5px;'>{account}</li>"
+        html_body += "</ul>"
+        html_body += "<p style='color: #666; font-style: italic; margin-top: 10px;'>No password expiry details found for the above accounts.</p>"
     
     html_body += """
         <div style="font-size: 12px; color: #666666; text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eeeeee;">
@@ -98,4 +129,3 @@ def generate_html_body(file_path):
     """
     
     return html_body
-
