@@ -2,192 +2,164 @@ import re
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
 
 def generate_html_body(file_path):
-    # CSS with escaped curly braces
-    css_style = """
-    <style>
-        * {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            box-sizing: border-box;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 30px;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }}
-        .header {{
-            border-bottom: 2px solid #2c3e50;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-        }}
-        .header h2 {{
-            color: #2c3e50;
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
-        }}
-        .table-container {{
-            margin: 20px 0;
-            overflow-x: auto;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 25px 0;
-            min-width: 600px;
-        }}
-        th {{
-            background-color: #2c3e50;
-            color: #fff;
-            padding: 12px 15px;
-            text-transform: uppercase;
-        }}
-        td {{
-            padding: 12px 15px;
-            border-bottom: 1px solid #ecf0f1;
-            color: #34495e;
-        }}
-        tr:nth-child(even) {{
-            background-color: #f8f9fa;
-        }}
-        .no-expiry {{
-            background: #f1f5f7;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            color: #2c3e50;
-            border-left: 4px solid #3498db;
-        }}
-        .account-section {{
-            margin-bottom: 30px;
-        }}
-        .footer {{
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #ecf0f1;
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }}
-    </style>
-    """
-
-    html_template = f"""<!DOCTYPE html>
+    html_body = """
+    <!DOCTYPE html>
     <html>
     <head>
-        {css_style}
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Snowflake Password Expiry Report</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f9f9f9;
+                color: #333333;
+                line-height: 1.6;
+            }
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            .header {
+                background-color: #0066cc;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px 5px 0 0;
+                margin: -20px -20px 20px;
+            }
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+                font-weight: 500;
+            }
+            .account-info {
+                background-color: #f0f7ff;
+                padding: 10px 15px;
+                border-left: 4px solid #0066cc;
+                margin-bottom: 20px;
+                border-radius: 0 5px 5px 0;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin-bottom: 20px;
+                border-radius: 5px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            th {
+                background-color: #e6f0ff;
+                color: #0066cc;
+                font-weight: 600;
+                text-align: left;
+                padding: 12px 10px;
+                font-size: 12px;
+                text-transform: uppercase;
+                border: 1px solid #d1e5ff;
+            }
+            td {
+                padding: 10px;
+                border: 1px solid #e6e6e6;
+                font-size: 13px;
+            }
+            tr:nth-child(even) {
+                background-color: #f5f9ff;
+            }
+            tr:hover {
+                background-color: #e9f3ff;
+            }
+            .footer {
+                font-size: 12px;
+                color: #666666;
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #eeeeee;
+            }
+            .warning {
+                background-color: #fff8e6;
+                color: #e67700;
+            }
+            .critical {
+                background-color: #fff0f0;
+                color: #cc0000;
+            }
+        </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h2>Snowflake Password Expiry Report</h2>
-                <p>Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+                <h1>Snowflake Password Expiry Report</h1>
             </div>
     """
+    
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        current_section = None
+        in_table = False
 
-    accounts = []
-    current_account = None
-
-    try:
-        with open(file_path, 'r') as file:
-            for line in file:
-                line = line.strip()
+        for line in lines:
+            line = line.strip()
+            
+            # Check for account name
+            match = re.search(r'SNOWFLAKE ACCOUNT NAME\s*:\s*(.*)', line)
+            if match:
+                if in_table:
+                    html_body += "</table>"
+                    in_table = False
                 
-                # Detect account name
-                account_match = re.search(r'SNOWFLAKE ACCOUNT NAME\s*:\s*(.*)', line, re.IGNORECASE)
-                if account_match:
-                    if current_account:
-                        accounts.append(current_account)
-                    current_account = {
-                        'name': account_match.group(1).strip(),
-                        'has_expiry': False,
-                        'headers': '',
-                        'rows': []
-                    }
-                    continue
+                account_name = match.group(1).strip()
+                html_body += f'<div class="account-info"><h2>Account: {account_name}</h2></div>'
+                html_body += "<table>"
+                html_body += "<thead>"
+                in_table = True
+                continue
                 
-                if current_account:
-                    # Detect table headers
-                    if '<th>' in line.lower():
-                        current_account['headers'] = line
-                    
-                    # Detect table rows
-                    if '<tr>' in line.lower() and '<td>' in line.lower():
-                        current_account['has_expiry'] = True
-                        current_account['rows'].append(line)
-
-            # Add the last account
-            if current_account:
-                accounts.append(current_account)
-    except FileNotFoundError:
-        print(f"Error: File not found at {file_path}")
-        return ""
-
-    # Build HTML content
-    for account in accounts:
-        html_template += f'<div class="account-section">'
-        html_template += f'<h3>{account.get("name", "Unnamed Account")}</h3>'
-        
-        if account.get('has_expiry', False):
-            html_template += '<div class="table-container">'
-            html_template += '<table>'
-            html_template += f'<thead>{account.get("headers", "")}</thead>'
-            html_template += f'<tbody>{"".join(account.get("rows", []))}</tbody>'
-            html_template += '</table></div>'
-        else:
-            html_template += '<div class="no-expiry">No password expiries found for this account</div>'
-        
-        html_template += '</div>'  # Close account-section
-
-    # Add footer
-    html_template += """
+            # Check for table headers
+            if '<tr><th>' in line:
+                # Make the header row nicer
+                line = line.replace('<tr><th>', '<tr><th>')  # Keep the original but add styling
+                html_body += line
+                html_body += "</thead><tbody>"
+                continue
+                
+            # Check for table data
+            if '<tr><td>' in line:
+                # Check if this row contains information about expiring passwords
+                if 'expir' in line.lower():
+                    if 'days' in line.lower():
+                        # Try to extract days until expiry
+                        days_match = re.search(r'(\d+)\s*days', line.lower())
+                        if days_match:
+                            days = int(days_match.group(1))
+                            if days <= 7:
+                                line = line.replace('<tr><td>', '<tr class="critical"><td>')
+                            elif days <= 14:
+                                line = line.replace('<tr><td>', '<tr class="warning"><td>')
+                
+                html_body += line
+                continue
+    
+        # Close the last table if needed
+        if in_table:
+            html_body += "</tbody></table>"
+    
+    html_body += """
             <div class="footer">
-                <p>This is an automated report. Please contact IT Security with any questions.</p>
+                <p>This is an automated report. Please do not reply to this email.</p>
+                <p>For support, please contact your Snowflake administrator.</p>
             </div>
         </div>
     </body>
     </html>
     """
-
-    return html_template
-
-if __name__ == "__main__":
-    file_path = r'/tmp/snow_pass_expiry.out'
     
-    # Generate HTML content
-    html_content = generate_html_body(file_path)
-    if not html_content:
-        print("Failed to generate report")
-        exit(1)
-    
-    # Email configuration (REPLACE WITH YOUR VALUES)
-    SMTP_HOST = "your.smtp.server.com"
-    SMTP_PORT = 587
-    FROM_EMAIL = "reports@yourcompany.com"
-    TO_EMAILS = "security@yourcompany.com;admin@yourcompany.com"
-    
-    try:
-        # Create message
-        msg = MIMEMultipart('mixed')
-        msg['From'] = FROM_EMAIL
-        msg['To'] = TO_EMAILS
-        msg['Subject'] = "Snowflake Password Expiry Report"
-        msg.attach(MIMEText(html_content, 'html'))
-
-        # Send email
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(FROM_EMAIL, "your_password")  # Add if required
-            server.sendmail(
-                FROM_EMAIL, 
-                TO_EMAILS.split(';'), 
-                msg.as_string()
-            )
-        print("Report email sent successfully")
-        
-    except Exception as e:
-        print(f"Error sending email: {str(e)}")
+    return html_body
