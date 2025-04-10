@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 def generate_html_body(file_path):
     html_body = """
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
-        <div style="background-color: #0066cc; color: white; padding: 15px 20px; border-radius: 5px 5px 0 0; margin: -20px -20px 20px;">
+        <div style="background-color: #003366; color: white; padding: 15px 20px; border-radius: 5px 5px 0 0; margin: -20px -20px 20px;">
             <h1 style="margin: 0; font-size: 24px; font-weight: 500;">Snowflake Password Expiry Report</h1>
         </div>
         <style>
@@ -25,8 +25,8 @@ def generate_html_body(file_path):
                 padding: 8px;
             }
             th {
-                background-color: #e6f0ff;
-                color: #0066cc;
+                background-color: #003366;
+                color: white;
                 font-weight: 600;
                 font-size: 12px;
             }
@@ -79,7 +79,7 @@ def generate_html_body(file_path):
                 
                 # Look ahead to see if there's any data for this account
                 # Prepare buffer but don't add to html_body yet
-                buffer += f'<div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {current_account}</h3></div>'
+                buffer += f'<div style="background-color: #e6eef7; padding: 10px 15px; border-left: 4px solid #003366; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {current_account}</h3></div>'
                 buffer += "<table>"
                 in_table = True
                 i += 1
@@ -124,7 +124,7 @@ def generate_html_body(file_path):
     # Add section for accounts without expiry details
     if accounts_without_details:
         html_body += """
-        <div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin: 30px 0 20px; border-radius: 0 5px 5px 0;">
+        <div style="background-color: #e6eef7; padding: 10px 15px; border-left: 4px solid #003366; margin: 30px 0 20px; border-radius: 0 5px 5px 0;">
             <h3 style="color: #333333; margin: 0;">Accounts with No Expiry Details</h3>
         </div>
         """
@@ -143,3 +143,4 @@ def generate_html_body(file_path):
     """
     
     return html_body
+
