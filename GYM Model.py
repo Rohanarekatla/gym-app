@@ -154,3 +154,40 @@ def generate_html_body(file_path):
     """
 
     return html_template
+
+if __name__ == "__main__":
+    file_path = r'/tmp/snow_pass_expiry.out'
+    
+    # Generate HTML content
+    html_content = generate_html_body(file_path)
+    if not html_content:
+        print("Failed to generate report")
+        exit(1)
+    
+    # Email configuration (REPLACE WITH YOUR VALUES)
+    SMTP_HOST = "your.smtp.server.com"
+    SMTP_PORT = 587
+    FROM_EMAIL = "reports@yourcompany.com"
+    TO_EMAILS = "security@yourcompany.com;admin@yourcompany.com"
+    
+    try:
+        # Create message
+        msg = MIMEMultipart('mixed')
+        msg['From'] = FROM_EMAIL
+        msg['To'] = TO_EMAILS
+        msg['Subject'] = "Snowflake Password Expiry Report"
+        msg.attach(MIMEText(html_content, 'html'))
+
+        # Send email
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(FROM_EMAIL, "your_password")  # Add if required
+            server.sendmail(
+                FROM_EMAIL, 
+                TO_EMAILS.split(';'), 
+                msg.as_string()
+            )
+        print("Report email sent successfully")
+        
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
