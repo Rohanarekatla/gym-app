@@ -49,9 +49,11 @@ def generate_html_body(file_path):
         current_account = None
         in_table = False
         has_data = False
-
-        for line in lines:
-            line = line.strip()
+        buffer = ""  # Buffer to store current account's HTML content
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
             
             # Check for account name
             match = re.search(r'SNOWFLAKE ACOUNT NAME\s*:\s*(.*)', line)
@@ -60,26 +62,33 @@ def generate_html_body(file_path):
                 if current_account:
                     # Close table if needed
                     if in_table:
-                        html_body += "</table>"
+                        buffer += "</table>"
                         in_table = False
                     
-                    # If no data was found for previous account, add to our list
-                    if not has_data:
+                    # If data was found for previous account, add the buffer to html_body
+                    # Otherwise, add account to the list of accounts without details
+                    if has_data:
+                        html_body += buffer
+                    else:
                         accounts_without_details.append(current_account)
                 
                 # Start processing new account
                 current_account = match.group(1).strip()
                 has_data = False  # Reset data flag for new account
+                buffer = ""  # Reset buffer
                 
-                # Add account header
-                html_body += f'<div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {current_account}</h3></div>'
-                html_body += "<table>"
+                # Look ahead to see if there's any data for this account
+                # Prepare buffer but don't add to html_body yet
+                buffer += f'<div style="background-color: #f0f7ff; padding: 10px 15px; border-left: 4px solid #0066cc; margin-bottom: 20px; border-radius: 0 5px 5px 0;"><h3 style="color: #333333; margin: 0;">Snowflake Account Name: {current_account}</h3></div>'
+                buffer += "<table>"
                 in_table = True
+                i += 1
                 continue
                 
             # Check for table headers
             if '<tr><th>' in line:
-                html_body += line
+                buffer += line
+                i += 1
                 continue
                 
             # Check for table data
@@ -96,16 +105,21 @@ def generate_html_body(file_path):
                         elif days <= 14:
                             line = line.replace('<tr><td>', '<tr style="background-color: #fff8e6;"><td>')
                 
-                html_body += line
+                buffer += line
+                i += 1
                 continue
+            
+            i += 1
     
         # Process the last account
-        if current_account and not has_data:
-            accounts_without_details.append(current_account)
+        if current_account:
+            if in_table:
+                buffer += "</table>"
             
-        # Close the last table if needed
-        if in_table:
-            html_body += "</table>"
+            if has_data:
+                html_body += buffer
+            else:
+                accounts_without_details.append(current_account)
     
     # Add section for accounts without expiry details
     if accounts_without_details:
